@@ -6,376 +6,363 @@
 <!--V005 - Added condition to handle clicking near the first vertex-->
 <!--V006 - Added condition to handle clicking near the last vertex, lowered the snapping tolerance from 20 to 15-->
 <html>
-  <head>
+
+<head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
-    <title>Map</title>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=yes" />
+    <title>LRS Tool 3</title>
     <link rel="stylesheet" href="https://js.arcgis.com/3.28/esri/css/esri.css">
     <style>
-      html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      #map {
-        position: absolute;
-        left: 0px;
-        top: 0px;
-        width: 100%;
-        height: 100%;
-        border-left: 1px solid black;
-        overflow: hidden;
-      }
-      #divReadout {
-        position: absolute;
-        left: 60px;
-        top: 20px;
-        z-index: 100;
-        color: black;
-        text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF;
-      }
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #divReadout {
+            position: absolute;
+            left: 60px;
+            top: 20px;
+            z-index: 100;
+            height: 10%;
+            width: 10%;
+            box-sizing: border-box;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-size: 14px;
+            line-height: 30px;
+            overflow: auto;
+        }
+
+        #btnMeasureReadout {
+            border-radius: 5px;
+            margin-left: 5px;
+        }
     </style>
     <script src="https://js.arcgis.com/3.28/"></script>
     <script>
-    var TxDOTVectorTileLayer;
-    var esri;
-    var map;
-    var queryTask;
-    var query;
-    var measureClicked = false;
-    var gidWithMeasuresGeom;
-    var mapPoint;
-    var featurePartIndex;
+        var TxDOTVectorTileLayer;
+        var esri;
+        var map;
+        var queryTask;
+        var query;
+        var measureClicked = false;
+        var gidWithMeasuresGeom;
+        var mapPoint;
+        var featurePartIndex;
 
-    require(
-      ["esri/map",
-      "esri/dijit/Legend",
-      "esri/config",
-      "esri/geometry/Extent",
-      "esri/toolbars/edit",
-      "esri/geometry/geodesicUtils",
-      "esri/units",
-      "esri/toolbars/draw",
-      "esri/dijit/Measurement",
-      "esri/SnappingManager",
-      "esri/request",
-      "esri/layers/FeatureLayer",
-      "esri/dijit/FeatureTable",
-      "esri/geometry/geometryEngine",
-      "esri/SpatialReference",
-      "esri/layers/VectorTileLayer",
-      "esri/symbols/SimpleLineSymbol",
-      "esri/Color",
-      "esri/layers/ArcGISTiledMapServiceLayer",
-      "dojo/dom",
-      "dojo/on",
-      "dojo/parser",
-      "dojo/domReady!"],
+        require(
+            ["esri/map",
+                "esri/dijit/Legend",
+                "esri/config",
+                "esri/geometry/Extent",
+                "esri/toolbars/edit",
+                "esri/geometry/geodesicUtils",
+                "esri/units",
+                "esri/toolbars/draw",
+                "esri/dijit/Measurement",
+                "esri/SnappingManager",
+                "esri/request",
+                "esri/layers/FeatureLayer",
+                "esri/dijit/FeatureTable",
+                "esri/geometry/geometryEngine",
+                "esri/SpatialReference",
+                "esri/layers/VectorTileLayer",
+                "esri/symbols/SimpleLineSymbol",
+                "esri/Color",
+                "esri/layers/ArcGISTiledMapServiceLayer",
+                "dojo/dom",
+                "dojo/on",
+                "dojo/parser",
+                "dojo/domReady!"
+            ],
             function(Map,
-            Legend,
-            esriConfig,
-            Extent,
-            Edit,
-            geodesicUtils,
-            Units,
-            Draw,
-            Measurement,
-            SnappingManager,
-            esriRequest,
-            FeatureLayer,
-            FeatureTable,
-            geometryEngine,
-            SpatialReference,
-            VectorTileLayer,
-            SimpleLineSymbol,
-            Color,
-            ArcGISTiledMapServiceLayer,
-            dom,
-            on,
-            parser) {
+                Legend,
+                esriConfig,
+                Extent,
+                Edit,
+                geodesicUtils,
+                Units,
+                Draw,
+                Measurement,
+                SnappingManager,
+                esriRequest,
+                FeatureLayer,
+                FeatureTable,
+                geometryEngine,
+                SpatialReference,
+                VectorTileLayer,
+                SimpleLineSymbol,
+                Color,
+                ArcGISTiledMapServiceLayer,
+                dom,
+                on,
+                parser) {
 
-              adjustApp();
-              parser.parse();
+                parser.parse();
 
-              map = new Map("map", {
-                // basemap: "hybrid",  //For full list of pre-defined basemaps, navigate to http://arcg.is/1JVo6Wd
-                center: [-99.5, 31.5], // longitude, latitude
-                zoom: 5,
-                minZoom:5,
-                maxZoom:19,
-                logo: false
-              });
+                map = new Map("map", {
+                    center: [-99.5, 31.5],
+                    zoom: 6,
+                    minZoom: 5,
+                    maxZoom: 23,
+                    logo: false
+                });
 
-          		// Vector basemap service
-          		TxDOTVectorTileLayer = new VectorTileLayer("https://tiles.arcgis.com/tiles/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Vector_Tile_Basemap/VectorTileServer"); //TxDOT Vector Tile Basemap
-          		map.addLayer(TxDOTVectorTileLayer);
+                // Vector basemap service
+                TxDOTVectorTileLayer = new VectorTileLayer("https://tiles.arcgis.com/tiles/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Vector_Tile_Basemap/VectorTileServer"); //TxDOT Vector Tile Basemap
+                map.addLayer(TxDOTVectorTileLayer);
 
-           	  map.on("click", identRouteForM);
+                map.on("click", identRouteForM);
                 on(dom.byId("btnMeasureReadout"), "click", toggleGetPointMeasure);
 
-              function clearGraphics() {
-                map.graphics.clear();
-              }
-
-              //-----Begin Measure
-            	function turnOffGetPointMeasure() {
-            	    var btnBackground = document.getElementById("btnMeasureReadout");
-            	    btnBackground.style.background = "#FFFFFF";
-            	    measureClicked = false;
-            	   // clearGraphics();
-            	}
-
-            	function toggleGetPointMeasure() {
-            	  var btnBackground = document.getElementById("btnMeasureReadout");
-
-            	  if (measureClicked) {
-            	    btnBackground.style.background = "#FFFFFF";
-            	    measureClicked = false;
-            	    clearGraphics();
-            	  }
-            	  else {
-            	    btnBackground.style.background = "#FF0000";
-            	    measureClicked = true;
-            	  }
-            	}
-
-              function identRouteForM(event) {
-        	      if (measureClicked) {
-                  if (document.getElementById("radMPT").checked) {
-                    queryTask = new esri.tasks.QueryTask("https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Control_Sections/FeatureServer/0");
-                  }
-                  if (document.getElementById("radDFO").checked) {
-                    queryTask = new esri.tasks.QueryTask("https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Roadways/FeatureServer/0");
-                  }
-
-                  query = new esri.tasks.Query();
-                  query.returnGeometry = true;
-                  query.outFields = ["*"];
-                  query.geometry = event.mapPoint;
-
-                  mapPoint = event.mapPoint;
-
-                  var point = event.mapPoint;
-                  var pxWidth = map.extent.getWidth() / map.width;
-                  var padding = 15 * pxWidth;
-                  var newGeom = new esri.geometry.Extent({
-                    "xmin": point.x - padding,
-                    "ymin": point.y - padding,
-                    "xmax": point.x + padding,
-                    "ymax": point.y + padding,
-                    "spatialReference": point.spatialReference
-                  });
-
-                  query.geometry = newGeom;
-                  // console.log(query);
-                  queryTask.execute(query, getSegmentWithM);
-        	      }
-        	    }
-
-              function getSegmentWithM(results) {
-                if (measureClicked) {
-                  if (results.features.length==0) {
-                    alert("Please click closer to a line.");
-                    return;
-                  }
-
-                  clearGraphics();
-
-                  var xmlhttp = new XMLHttpRequest();
-                  xmlhttp.responseType = 'json';
-                	xmlhttp.onreadystatechange=function() {
-                	  if (xmlhttp.readyState==4 && xmlhttp.status==200)	{
-                      //Post edit activities
-                      gidWithMeasuresGeom=xmlhttp.response;
-                      getPointM();
-                	  }
-                	};
-
-                	if (document.getElementById("radMPT").checked) {
-                    var serviceString = "https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Control_Sections/FeatureServer/0";
-                    var paraString = "/query?f=json&where=GID=" + results.features[0].attributes.GID + " AND CTRL_SECT_NBR='" + results.features[0].attributes.CTRL_SECT_NBR + "'&returnGeometry=true&returnM=true";
-                  }
-                  if (document.getElementById("radDFO").checked) {
-                    var serviceString = "https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Roadways/FeatureServer/0";
-                    var paraString = "/query?f=json&where=GID=" + results.features[0].attributes.GID + "&returnGeometry=true&returnM=true";
-                  }
-
-                  var queryString = serviceString+paraString;
-                  xmlhttp.open("POST",queryString,true);
-                  xmlhttp.send();
-                }
-              }
-
-          	  function getPointM() {
-          	   // console.log(mapPoint);
-          	   // console.log(gidWithMeasuresGeom)
-          	    var firstIntersectingPoint = findNearestCoordinate(mapPoint);
-          	    var firstIntersectingCoord = geometryEngine.nearestVertex(gidWithMeasuresGeom.features[featurePartIndex].geometry, firstIntersectingPoint);
-          	    var vertexIndex = firstIntersectingCoord.vertexIndex;
-          	    var maxVertex = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0].length-1;
-          	   console.log(maxVertex);
-
-          	    if (vertexIndex == 0) {
-            	  var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
-                  var thePoint2 = new esri.geometry.Point([coord2[0],coord2[1]], new SpatialReference({wkid: 3857 }));
-                  var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
-                  var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2,firstIntersectingPoint), 9001);
-                  var geoMileValue = ((geoMeterLength/1609.344)*1000)/1000;
-                  calculatedM = point2M + geoMileValue;
-          	    }
-
-          	    if (vertexIndex == maxVertex) {
-            	  var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
-                  var thePoint2 = new esri.geometry.Point([coord2[0],coord2[1]], new SpatialReference({wkid: 3857 }));
-                  var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
-                  var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2,firstIntersectingPoint), 9001);
-                  var geoMileValue = ((geoMeterLength/1609.344)*1000)/1000;
-                  calculatedM = point2M - geoMileValue;
-          	    }
-
-                if (vertexIndex > 0 && vertexIndex < maxVertex) {
-            	    var coord1 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex-1];
-            	    var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
-            	    var coord3 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex+1];
-
-            	    var thePoint1 = new esri.geometry.Point([coord1[0],coord1[1]], new SpatialReference({wkid: 3857 }));
-            	    var thePoint2 = new esri.geometry.Point([coord2[0],coord2[1]], new SpatialReference({wkid: 3857 }));
-            	    var thePoint3 = new esri.geometry.Point([coord3[0],coord3[1]], new SpatialReference({wkid: 3857 }));
-
-            	   drawPoint(thePoint1,Math.round(coord1[2]*1000)/1000,"#000000");
-          	       drawPoint(thePoint2,Math.round(coord2[2]*1000)/1000,"#000000");
-            	   drawPoint(thePoint3,Math.round(coord3[2]*1000)/1000,"#000000");
-
-            	    var firstTestSegment = createTwoPointPolyline(thePoint1,thePoint2);
-            	    var secondTestSegment = createTwoPointPolyline(thePoint2,thePoint3);
-
-            	    var intersectsFirstSegment = geometryEngine.intersects(firstIntersectingPoint,firstTestSegment)
-            	    var intersectsSecondSegment = geometryEngine.intersects(firstIntersectingPoint,secondTestSegment)
-            	    var calculatedM = 0;
-
-          	      var point1M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex-1][2];
-          	      var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
-          	      var point3M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex+1][2];
-
-                 	var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2,firstIntersectingPoint), 9001);
-                  var geoMileValue = ((geoMeterLength/1609.344)*1000)/1000;
-
-            	    if (intersectsFirstSegment) {
-            	      if (point1M>point2M) {
-            	        calculatedM = point2M + geoMileValue;
-            	      }
-            	      else {
-            	        calculatedM = point2M - geoMileValue;
-            	      }
-            	    }
-            	    else {
-            	      if (point3M>point2M) {
-            	        calculatedM = point2M + geoMileValue;
-            	      }
-            	      else {
-            	        calculatedM = point2M - geoMileValue;
-            	      }
-            	    }
+                function clearGraphics() {
+                    map.graphics.clear();
                 }
 
-          	    drawPoint(firstIntersectingPoint,Math.round(calculatedM*1000)/1000,"#FF0000");
-          	  }
-
-          	  function drawPoint(thePoint,theLabel,theColor) {
-          	    var thePoint = new esri.geometry.Point([thePoint.x,thePoint.y], new SpatialReference({wkid: 3857 }));
-                //Point style
-                var symbol = new esri.symbol.SimpleMarkerSymbol();
-        				symbol.style = esri.symbol.SimpleMarkerSymbol.STYLE_TRIANGLE;
-        				symbol.setSize(6);
-        				symbol.setColor(new esri.Color(theColor));
-        				map.graphics.add(new esri.Graphic(thePoint, symbol));
-
-        				//Label
-        				var label_symbol =  new esri.symbol.TextSymbol(theLabel);
-        				label_symbol.setColor(new esri.Color(theColor));
-        				label_symbol.setFont(new esri.symbol.Font("10pt").setWeight(esri.symbol.Font.WEIGHT_BOLD));
-
-                        var currentScale = map.getScale();
-        				var labelOffset=Math.round(currentScale/350);
-
-        				//Location for the label
-        				var labelLocation = new esri.geometry.Point([thePoint.x,thePoint.y+labelOffset], new SpatialReference({wkid: 3857 }));
-        				map.graphics.add(new esri.Graphic(labelLocation, label_symbol));
-          	  }
-          	  //-----End Measure
-
-          	  function createTwoPointPolyline(point1,point2) {
-                  var newPolyline = new esri.geometry.Polyline(new esri.SpatialReference({wkid:3857}));
-                  newPolyline.type = "polyline";
-                  var tmpAttLine = [];
-                  tmpAttLine.push(point1);
-                  tmpAttLine.push(point2);
-                  newPolyline.addPath(tmpAttLine);
-                  return newPolyline;
-          	  }
-
-          	  function findNearestCoordinate(point) {
-                var shortestDistance = 20000;
-                var firstIntersectingPoint;
-                var firstIntersectingPointTemp;
-                featurePartIndex = 0;
-
-                for (var h=0; h < gidWithMeasuresGeom.features.length; h++) {
-                  firstIntersectingPointTemp = geometryEngine.nearestCoordinate(gidWithMeasuresGeom.features[h].geometry, point);
-                  if (firstIntersectingPointTemp.distance < shortestDistance) {
-                    shortestDistance = firstIntersectingPointTemp.distance;
-                    firstIntersectingPoint = firstIntersectingPointTemp;
-                    featurePartIndex = h;
-                  }
+                //-----Begin Measure
+                function turnOffGetPointMeasure() {
+                    var btnBackground = document.getElementById("btnMeasureReadout");
+                    btnBackground.style.background = "#FFFFFF";
+                    measureClicked = false;
                 }
 
-                var returnPoint = new esri.geometry.Point([firstIntersectingPoint.coordinate.x,firstIntersectingPoint.coordinate.y], new SpatialReference({wkid: 3857 }));
-                return returnPoint;
-          	  }
+                function toggleGetPointMeasure() {
+                    var btnBackground = document.getElementById("btnMeasureReadout");
 
-              //-----Adjusts the header, index, and contents-----//
-              function adjustApp() {
-                var w = window.innerWidth;
-                var h = window.innerHeight;
+                    if (measureClicked) {
+                        btnBackground.style.background = "#FFFFFF";
+                        measureClicked = false;
+                        clearGraphics();
+                    } else {
+                        btnBackground.style.background = "#FF0000";
+                        measureClicked = true;
+                    }
+                }
 
-                //----Map Variables
-                var mapStyleTop = 0;
-                var mapStyleLeft = 0;
-                var mapWidth = w;
-                var mapHeight = h;
+                function identRouteForM(event) {
+                    if (measureClicked) {
+                        if (document.getElementById("radMPT").checked) {
+                            queryTask = new esri.tasks.QueryTask("https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Control_Sections/FeatureServer/0");
+                        }
+                        if (document.getElementById("radDFO").checked) {
+                            queryTask = new esri.tasks.QueryTask("https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Roadways/FeatureServer/0");
+                        }
 
-                document.getElementById("map").style.top = mapStyleTop + "px";
-                document.getElementById("map").style.left = mapStyleLeft  + "px";
-                document.getElementById("map").style.width = mapWidth + "px";
-                document.getElementById("map").style.height = mapHeight + "px";
-                //----End Map
-              }
-              //-----End header, index, and contents-----//
+                        query = new esri.tasks.Query();
+                        query.returnGeometry = true;
+                        query.outFields = ["*"];
+                        query.geometry = event.mapPoint;
 
-         //Function End
-        }
-    //Require end
-    );
+                        mapPoint = event.mapPoint;
 
-    //Adjusts the table of contents, map, and coordinate readouts.
-    function adjustApp() {
-      var w = window.innerWidth;
-      var h = window.innerHeight;
+                        var point = event.mapPoint;
+                        var pxWidth = map.extent.getWidth() / map.width;
+                        var padding = 15 * pxWidth;
+                        var newGeom = new esri.geometry.Extent({
+                            "xmin": point.x - padding,
+                            "ymin": point.y - padding,
+                            "xmax": point.x + padding,
+                            "ymax": point.y + padding,
+                            "spatialReference": point.spatialReference
+                        });
 
-      document.getElementById("map").style.left = "0px";
-      document.getElementById("map").style.width = (w - (2)) + "px";
-      document.getElementById("map").style.height = h + "px";
-    }
+                        query.geometry = newGeom;
+                        queryTask.execute(query, getSegmentWithM);
+                    }
+                }
+
+                function getSegmentWithM(results) {
+                    if (measureClicked) {
+                        if (results.features.length == 0) {
+                            alert("Please click closer to a line.");
+                            return;
+                        }
+
+                        clearGraphics();
+
+                        var xmlhttp = new XMLHttpRequest();
+                        xmlhttp.responseType = 'json';
+                        xmlhttp.onreadystatechange = function() {
+                            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                                gidWithMeasuresGeom = xmlhttp.response;
+                                getPointM();
+                            }
+                        };
+
+                        if (document.getElementById("radMPT").checked) {
+                            var serviceString = "https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Control_Sections/FeatureServer/0";
+                            var paraString = "/query?f=json&where=GID=" + results.features[0].attributes.GID + " AND CTRL_SECT_NBR='" + results.features[0].attributes.CTRL_SECT_NBR + "'&returnGeometry=true&returnM=true";
+                        }
+                        if (document.getElementById("radDFO").checked) {
+                            var serviceString = "https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_Roadways/FeatureServer/0";
+                            var paraString = "/query?f=json&where=GID=" + results.features[0].attributes.GID + "&returnGeometry=true&returnM=true";
+                        }
+
+                        var queryString = serviceString + paraString;
+                        xmlhttp.open("POST", queryString, true);
+                        xmlhttp.send();
+                    }
+                }
+
+                function getPointM() {
+                    console.log(mapPoint);
+                    console.log(gidWithMeasuresGeom)
+                    var firstIntersectingPoint = findNearestCoordinate(mapPoint);
+                    var firstIntersectingCoord = geometryEngine.nearestVertex(gidWithMeasuresGeom.features[featurePartIndex].geometry, firstIntersectingPoint);
+                    var vertexIndex = firstIntersectingCoord.vertexIndex;
+                    var maxVertex = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0].length - 1;
+                    console.log(maxVertex);
+
+                    if (vertexIndex == 0) {
+                        var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
+                        var thePoint2 = new esri.geometry.Point([coord2[0], coord2[1]], new SpatialReference({
+                            wkid: 3857
+                        }));
+                        var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
+                        var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2, firstIntersectingPoint), 9001);
+                        var geoMileValue = ((geoMeterLength / 1609.344) * 1000) / 1000;
+                        calculatedM = point2M + geoMileValue;
+                    }
+
+                    if (vertexIndex == maxVertex) {
+                        var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
+                        var thePoint2 = new esri.geometry.Point([coord2[0], coord2[1]], new SpatialReference({
+                            wkid: 3857
+                        }));
+                        var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
+                        var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2, firstIntersectingPoint), 9001);
+                        var geoMileValue = ((geoMeterLength / 1609.344) * 1000) / 1000;
+                        calculatedM = point2M - geoMileValue;
+                    }
+
+                    if (vertexIndex > 0 && vertexIndex < maxVertex) {
+                        var coord1 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex - 1];
+                        var coord2 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex];
+                        var coord3 = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex + 1];
+
+                        var thePoint1 = new esri.geometry.Point([coord1[0], coord1[1]], new SpatialReference({
+                            wkid: 3857
+                        }));
+                        var thePoint2 = new esri.geometry.Point([coord2[0], coord2[1]], new SpatialReference({
+                            wkid: 3857
+                        }));
+                        var thePoint3 = new esri.geometry.Point([coord3[0], coord3[1]], new SpatialReference({
+                            wkid: 3857
+                        }));
+
+                        drawPoint(thePoint1, Math.round(coord1[2] * 1000) / 1000, "#000000");
+                        drawPoint(thePoint2, Math.round(coord2[2] * 1000) / 1000, "#000000");
+                        drawPoint(thePoint3, Math.round(coord3[2] * 1000) / 1000, "#000000");
+
+                        var firstTestSegment = createTwoPointPolyline(thePoint1, thePoint2);
+                        var secondTestSegment = createTwoPointPolyline(thePoint2, thePoint3);
+
+                        var intersectsFirstSegment = geometryEngine.intersects(firstIntersectingPoint, firstTestSegment)
+                        var intersectsSecondSegment = geometryEngine.intersects(firstIntersectingPoint, secondTestSegment)
+                        var calculatedM = 0;
+
+                        var point1M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex - 1][2];
+                        var point2M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex][2];
+                        var point3M = gidWithMeasuresGeom.features[featurePartIndex].geometry.paths[0][vertexIndex + 1][2];
+
+                        var geoMeterLength = geometryEngine.geodesicLength(createTwoPointPolyline(thePoint2, firstIntersectingPoint), 9001);
+                        var geoMileValue = ((geoMeterLength / 1609.344) * 1000) / 1000;
+
+                        if (intersectsFirstSegment) {
+                            if (point1M > point2M) {
+                                calculatedM = point2M + geoMileValue;
+                            } else {
+                                calculatedM = point2M - geoMileValue;
+                            }
+                        } else {
+                            if (point3M > point2M) {
+                                calculatedM = point2M + geoMileValue;
+                            } else {
+                                calculatedM = point2M - geoMileValue;
+                            }
+                        }
+                    }
+
+                    drawPoint(firstIntersectingPoint, Math.round(calculatedM * 1000) / 1000, "#FF0000");
+                }
+
+                function drawPoint(thePoint, theLabel, theColor) {
+                    var thePoint = new esri.geometry.Point([thePoint.x, thePoint.y], new SpatialReference({
+                        wkid: 3857
+                    }));
+                    //Point style
+                    var symbol = new esri.symbol.SimpleMarkerSymbol();
+                    symbol.style = esri.symbol.SimpleMarkerSymbol.STYLE_TRIANGLE;
+                    symbol.setSize(6);
+                    symbol.setColor(new esri.Color(theColor));
+                    map.graphics.add(new esri.Graphic(thePoint, symbol));
+
+                    //Label
+                    var label_symbol = new esri.symbol.TextSymbol(theLabel);
+                    label_symbol.setColor(new esri.Color(theColor));
+                    label_symbol.setFont(new esri.symbol.Font("10pt").setWeight(esri.symbol.Font.WEIGHT_BOLD));
+
+                    var currentScale = map.getScale();
+                    var labelOffset = Math.round(currentScale / 350);
+
+                    //Location for the label
+                    var labelLocation = new esri.geometry.Point([thePoint.x, thePoint.y + labelOffset], new SpatialReference({
+                        wkid: 3857
+                    }));
+                    map.graphics.add(new esri.Graphic(labelLocation, label_symbol));
+                }
+                //-----End Measure
+
+                function createTwoPointPolyline(point1, point2) {
+                    var newPolyline = new esri.geometry.Polyline(new esri.SpatialReference({
+                        wkid: 3857
+                    }));
+                    newPolyline.type = "polyline";
+                    var tmpAttLine = [];
+                    tmpAttLine.push(point1);
+                    tmpAttLine.push(point2);
+                    newPolyline.addPath(tmpAttLine);
+                    return newPolyline;
+                }
+
+                function findNearestCoordinate(point) {
+                    var shortestDistance = 20000;
+                    var firstIntersectingPoint;
+                    var firstIntersectingPointTemp;
+                    featurePartIndex = 0;
+
+                    for (var h = 0; h < gidWithMeasuresGeom.features.length; h++) {
+                        firstIntersectingPointTemp = geometryEngine.nearestCoordinate(gidWithMeasuresGeom.features[h].geometry, point);
+                        if (firstIntersectingPointTemp.distance < shortestDistance) {
+                            shortestDistance = firstIntersectingPointTemp.distance;
+                            firstIntersectingPoint = firstIntersectingPointTemp;
+                            featurePartIndex = h;
+                        }
+                    }
+
+                    var returnPoint = new esri.geometry.Point([firstIntersectingPoint.coordinate.x, firstIntersectingPoint.coordinate.y], new SpatialReference({
+                        wkid: 3857
+                    }));
+                    return returnPoint;
+                }
+            }
+        );
     </script>
-  </head>
-  <body onresize="adjustApp()">
+</head>
+<body>
     <div id="map">
-       <div id="divReadout">
-         <button id="btnMeasureReadout" class="mapButtons" title="Click to activate the LRS Tool.">Click to activate LRS Tool</button>
-         <br>
-         <input id="radMPT" type="radio" name="lrsType" value="MPT" checked> Control Section Milepoint<br>
-         <input id="radDFO" type="radio" name="lrsType" value="DFO"> Distance From Origin<br>
-       </div>
+        <div id="divReadout">
+            <button id="btnMeasureReadout" class="mapButtons" title="Click to activate the LRS Tool.">LRS Identify Tool &nbsp&nbsp&nbsp&nbsp</button>
+            <br>
+            <input id="radMPT" type="radio" name="lrsType" value="MPT" checked> CS Milepoint<br>
+            <input id="radDFO" type="radio" name="lrsType" value="DFO"> Distance From Origin<br>
+        </div>
     </div>
-  </body>
+</body>
+
 </html>
